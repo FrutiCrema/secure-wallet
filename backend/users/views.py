@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
 from django.middleware.csrf import get_token
+from django.db import transaction
 
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -20,16 +21,16 @@ class RegisterView(APIView):
 
         serializer.is_valid(raise_exception=True)
 
-        user = serializer.save()
-
-        create_audit_log(
-            action='REGISTER',
-            user=user,
-            request=request,
-            metadata={
-                'username': user.username,
-            },
-        )
+        with transaction.atomic():
+            user = serializer.save()
+            create_audit_log(
+                action='REGISTER',
+                user=user,
+                request=request,
+                metadata={
+                    'username': user.username,
+                },
+            )
 
         return Response(
             {

@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 
 from .models import PaymentMethod
 from .serializers import PaymentMethodSerializer
@@ -17,12 +18,11 @@ class PaymentMethodListCreateView(APIView):
             user=request.user
         ).order_by('-created_at')
 
-        serializer = PaymentMethodSerializer(
-            payment_methods,
-            many=True
-        )
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(payment_methods, request)
+        serializer = PaymentMethodSerializer(page, many=True)
 
-        return Response(serializer.data)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         serializer = PaymentMethodSerializer(
