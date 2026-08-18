@@ -2,6 +2,21 @@ from django.conf import settings
 from django.db import models
 
 
+class PaymentMethodQuerySet(models.QuerySet):
+
+    def active_records(self):
+        return self.filter(deleted_at__isnull=True)
+
+
+class PaymentMethodManager(models.Manager):
+
+    def get_queryset(self):
+        return PaymentMethodQuerySet(
+            self.model,
+            using=self._db
+        ).active_records()
+
+
 class PaymentMethod(models.Model):
 
     class PaymentType(models.TextChoices):
@@ -66,9 +81,13 @@ class PaymentMethod(models.Model):
         blank=True
     )
 
+    objects = PaymentMethodManager()
+
+    all_objects = models.Manager()
+
     class Meta:
         db_table = 'payment_methods'
-        
+
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'identifier_hash'],

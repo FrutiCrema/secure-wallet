@@ -1,6 +1,7 @@
 import hashlib
 import hmac
-import os
+
+from django.conf import settings
 
 
 def normalize_identifier(identifier: str) -> str:
@@ -10,7 +11,7 @@ def normalize_identifier(identifier: str) -> str:
 def hash_identifier(identifier: str) -> str:
     normalized = normalize_identifier(identifier)
 
-    secret = os.getenv('PAYMENT_IDENTIFIER_SECRET')
+    secret = settings.PAYMENT_IDENTIFIER_SECRET
 
     if not secret:
         raise RuntimeError(
@@ -22,3 +23,9 @@ def hash_identifier(identifier: str) -> str:
         normalized.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
+
+
+def get_last_four(identifier: str) -> str:
+    normalized = normalize_identifier(identifier)
+
+    return normalized[-4:]
