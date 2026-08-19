@@ -1,6 +1,9 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
+
+REQUIRED_FIELD_ERROR = 'Este campo es obligatorio.'
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -39,8 +42,34 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        return User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-        )
+        try:
+            with transaction.atomic():
+                return User.objects.create_user(
+                    username=validated_data['username'],
+                    email=validated_data['email'],
+                    password=validated_data['password'],
+                )
+        except IntegrityError as exc:
+            if 'uniq_auth_user_email' in str(exc):
+                raise serializers.ValidationError({
+                    'email': 'Este correo electrónico ya está registrado.',
+                }) from exc
+            raise
+
+
+class LoginSerializer(serializers.Serializer):
+
+    username = serializers.CharField(
+        error_messages={
+            'required': REQUIRED_FIELD_ERROR,
+            'blank': REQUIRED_FIELD_ERROR,
+        },
+    )
+
+    password = serializers.CharField(
+        write_only=True,
+        error_messages={
+            'required': REQUIRED_FIELD_ERROR,
+            'blank': REQUIRED_FIELD_ERROR,
+        },
+    )

@@ -3,6 +3,7 @@ import re
 from rest_framework import serializers
 
 from .models import PaymentMethod
+from .services.security import normalize_identifier
 
 
 class PaymentMethodSerializer(serializers.ModelSerializer):
@@ -67,14 +68,19 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
         return value
 
     def validate_identifier(self, value):
-        value = value.strip()
+        normalized = normalize_identifier(value)
 
-        if not value:
+        if not normalized:
             raise serializers.ValidationError(
                 'El identificador es obligatorio.'
             )
 
-        return value
+        if len(normalized) < 4:
+            raise serializers.ValidationError(
+                'El identificador debe tener al menos 4 caracteres.'
+            )
+
+        return normalized
 
     def validate(self, attrs):
         payment_type = attrs.get('type')
@@ -83,7 +89,8 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
         if not payment_type or not identifier:
             return attrs
 
-        normalized = ''.join(identifier.split())
+        normalized = normalize_identifier(identifier)
+        attrs['identifier'] = normalized
 
         if payment_type == PaymentMethod.PaymentType.CLABE:
             if not normalized.isdigit() or len(normalized) != 18:
@@ -105,6 +112,12 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
             if not self._passes_luhn(normalized):
                 raise serializers.ValidationError({
                     'identifier': 'El número de tarjeta no es válido.'
+                })
+
+        elif payment_type == PaymentMethod.PaymentType.BANK_ACCOUNT:
+            if not normalized.isdigit():
+                raise serializers.ValidationError({
+                    'identifier': 'La cuenta bancaria debe contener únicamente dígitos.'
                 })
 
         return attrs

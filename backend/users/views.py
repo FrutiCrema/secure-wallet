@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 
 from audit.services import create_audit_log
 
-from .serializers import RegisterSerializer
+from .serializers import LoginSerializer, RegisterSerializer
 
 
 class RegisterView(APIView):
@@ -59,21 +59,13 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-
-        if not username or not password:
-            return Response(
-                {
-                    'detail': 'Username y password son requeridos.'
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
         user = authenticate(
             request=request,
-            username=username,
-            password=password,
+            username=serializer.validated_data['username'],
+            password=serializer.validated_data['password'],
         )
 
         if user is None:
