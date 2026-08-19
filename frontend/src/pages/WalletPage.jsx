@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { deletePaymentMethod, listPaymentMethods } from '../api/paymentMethods'
+import { deletePaymentMethod, listAllPaymentMethods } from '../api/paymentMethods'
 import { useAuth } from '../auth/context'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { logAppError } from '../errors'
@@ -13,7 +13,6 @@ const SLIDE_MS = 5200
 export function WalletPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [page, setPage] = useState(1)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -24,11 +23,10 @@ export function WalletPage() {
     let cancelled = false
 
     async function load() {
-      setLoading(true)
       setError(null)
 
       try {
-        const response = await listPaymentMethods(page)
+        const response = await listAllPaymentMethods()
         if (!cancelled) {
           setData(response)
         }
@@ -49,7 +47,7 @@ export function WalletPage() {
     return () => {
       cancelled = true
     }
-  }, [page])
+  }, [])
 
   async function handleDelete(method) {
     const confirmed = window.confirm(
@@ -65,11 +63,8 @@ export function WalletPage() {
 
     try {
       await deletePaymentMethod(method.id)
-      const response = await listPaymentMethods(page)
+      const response = await listAllPaymentMethods()
       setData(response)
-      if (response.results.length === 0 && page > 1) {
-        setPage((current) => current - 1)
-      }
     } catch (err) {
       logAppError('Error al desactivar método de pago', err)
       setError(err)
@@ -81,11 +76,17 @@ export function WalletPage() {
   const methods = data?.results ?? []
   const methodCount = data?.count ?? 0
   const slides = chunkMethods(methods, CARDS_PER_SLIDE)
-  const shouldCycle = methods.length > CARDS_PER_SLIDE
+  const shouldCycle = slides.length > 1
 
   useEffect(() => {
-    setSlide(0)
-  }, [page, methods.length])
+    setSlide((current) => {
+      if (slides.length === 0) {
+        return 0
+      }
+
+      return Math.min(current, slides.length - 1)
+    })
+  }, [slides.length])
 
   useEffect(() => {
     if (!shouldCycle) {
@@ -97,7 +98,11 @@ export function WalletPage() {
     }, SLIDE_MS)
 
     return () => window.clearInterval(timer)
-  }, [shouldCycle, slides.length])
+  }, [shouldCycle, slides.length, slide])
+
+  function goToSlide(nextIndex) {
+    setSlide((nextIndex + slides.length) % slides.length)
+  }
 
   return (
     <section className="wallet">
@@ -158,7 +163,9 @@ export function WalletPage() {
                     className={
                       shouldCycle && groupIndex === slide
                         ? 'wallet-method-list is-active'
-                        : 'wallet-method-list'
+                        : shouldCycle
+                          ? 'wallet-method-list'
+                          : 'wallet-method-list is-active'
                     }
                     data-count={group.length}
                     aria-hidden={shouldCycle && groupIndex !== slide}
@@ -176,6 +183,30 @@ export function WalletPage() {
                   </ul>
                 ))}
               </div>
+
+              {shouldCycle ? (
+                <nav className="pagination" aria-label="Paginación de métodos">
+                  <button
+                    type="button"
+                    className="ghost pagination-arrow"
+                    aria-label="Anterior"
+                    onClick={() => goToSlide(slide - 1)}
+                  >
+                    <ChevronLeftIcon />
+                  </button>
+                  <span>
+                    Página {slide + 1} de {slides.length}
+                  </span>
+                  <button
+                    type="button"
+                    className="ghost pagination-arrow"
+                    aria-label="Siguiente"
+                    onClick={() => goToSlide(slide + 1)}
+                  >
+                    <ChevronRightIcon />
+                  </button>
+                </nav>
+              ) : null}
             </>
           ) : null}
 
@@ -238,6 +269,36 @@ function chunkMethods(methods, size) {
   }
 
   return groups
+}
+
+function ChevronLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M15.5 5.5 9 12l6.5 6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M8.5 5.5 15 12l-6.5 6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 }
 
 function WalletVisual() {

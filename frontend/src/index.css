@@ -955,12 +955,17 @@ button.danger {
 }
 
 .wallet-stage .pagination {
+  justify-content: center;
   color: rgba(237, 247, 243, 0.85);
 }
 
 .wallet-stage .pagination .ghost {
   color: #edf7f3;
   border-color: rgba(255, 255, 255, 0.28);
+}
+
+.wallet-stage .pagination .ghost:disabled {
+  opacity: 0.4;
 }
 
 @media (max-width: 860px) {
@@ -1078,6 +1083,19 @@ button.danger {
   align-items: center;
   gap: 0.75rem;
   margin-top: 1rem;
+}
+
+.pagination-arrow {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.pagination-arrow svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
 }
 
 .empty-card {

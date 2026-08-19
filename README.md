@@ -12,7 +12,7 @@ Este repositorio es una prueba técnica fullstack (Django + React + MySQL).
 | Backend | Python, Django 5.2.17, Django REST Framework 3.18.0, django-cors-headers 4.9.0, python-dotenv 1.2.3 |
 | Base de datos | MySQL (`mysqlclient` 2.2.8) |
 | Autenticación | Usuario por defecto de Django, sesiones (`SessionAuthentication`), cookies, CSRF |
-| Testing | `pytest` 9.1.1 y `pytest-django` 4.14.0 como dependencias; las pruebas actuales son `TestCase` / `APITestCase` de Django |
+| Testing | 26 pruebas de backend (`TestCase` / `APITestCase`). Se ejecutan con `python manage.py test` o `pytest` (`pytest.ini` + pytest-django 4.14.0). |
 
 El frontend no incluye un runner de tests (Jest, Vitest, etc.). Oxlint se usa como linter (`npm run lint`).
 
@@ -58,7 +58,7 @@ Cada método guarda alias, institución, moneda (código de 3 letras), tipo, est
 - **Desactivación** (soft delete): `deleted_at` + `status=INACTIVE`. Deja de aparecer en listado y detalle.
 - **Reactivación:** si se vuelve a registrar el mismo identificador (mismo hash) de un método desactivado del mismo usuario, se reactiva y se actualizan alias, institución, moneda y tipo.
 - **Duplicados:** un identificador activo no puede repetirse para el mismo usuario (`409`).
-- **Paginación:** `PAGE_SIZE = 10`. El listado usa `?page=`. El frontend muestra controles de página cuando hay más resultados que los de la página actual.
+- **Paginación:** `PAGE_SIZE = 3`. El listado usa `?page=`. En el inicio, el carrusel muestra 3 métodos por diapositiva, gira solo y también se puede avanzar con Anterior/Siguiente.
 
 Pantallas: registro, login, inicio (perfil + listado), alta, detalle y desactivación.
 
@@ -90,10 +90,12 @@ secure-wallet/
 ├── backend/
 │   ├── config/                 # settings, urls, wsgi/asgi
 │   ├── users/                  # auth API
+│   │   └── services/           # registro, login, logout, auditoría
 │   ├── payment_methods/        # métodos de pago + servicios
 │   │   └── services/           # HMAC, alta/desactivación
 │   ├── audit/                  # logs de operaciones
 │   ├── manage.py
+│   ├── pytest.ini
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
@@ -113,7 +115,7 @@ secure-wallet/
 - **Git**
 - **Python 3.10+** (Django 5.2; el entorno de desarrollo usado fue 3.13)
 - **Node.js 20.19+ o 22.12+** (requerido por Vite 8) y **npm**
-- **MySQL** con un esquema y un usuario con permisos sobre esa base
+- **MySQL** con la base de desarrollo (`secure_wallet`) y, para tests, privilegios para que Django cree y destruya `test_secure_wallet`
 - En Windows, `mysqlclient` necesita las librerías cliente de MySQL instaladas
 
 No hay archivo `.python-version` ni `engines` en `package.json`.
@@ -151,6 +153,8 @@ FLUSH PRIVILEGES;
 ```
 
 Las tablas se crean con las migraciones de Django (incluye el índice único de email en `auth_user`).
+
+Los tests **no** usan `secure_wallet`. Django crea y destruye una base aparte, `test_secure_wallet` (`test_` + `DB_NAME`). `wallet_app` necesita `CREATE` y `DROP` globales más `ALL PRIVILEGES` sobre `test_secure_wallet.*`; si no, `manage.py test` y `pytest` fallan con `1044 Access denied`.
 
 ### Backend
 
@@ -195,24 +199,29 @@ Otros scripts: `npm run build`, `npm run preview` (también proxifica `/api`), `
 
 ## Tests
 
-Hay pruebas de backend en:
-
-- `backend/users/tests.py` — email único, login
-- `backend/payment_methods/tests.py` — normalización del identificador, validaciones y que las respuestas no incluyen el identificador completo
-- `backend/audit/tests.py` — archivo vacío (sin casos)
-
-No hay `pytest.ini`. La forma alineada con el código actual es, con el venv activo, `.env` cargado y desde `backend/`:
+Hay **26** pruebas de backend. Con el venv activo, `.env` cargado y desde `backend/`:
 
 ```bash
 python manage.py test
+pytest
 ```
+
+Ambos recorren los mismos 26 casos (`26 passed` en la última ejecución). `backend/pytest.ini` apunta a `config.settings` y descubre los archivos `tests.py` de las apps.
+
+Cobertura actual:
+
+- `backend/users/tests.py` — email único, login, logout (invalida la sesión)
+- `backend/payment_methods/tests.py` — normalización del identificador, validaciones, que las respuestas no incluyen el identificador completo, duplicados (`409`), aislamiento entre usuarios, soft delete y reactivación
+- `backend/audit/tests.py` — `REGISTER`, `LOGIN`, `LOGOUT`, `CREATE_PAYMENT_METHOD`, `DELETE_PAYMENT_METHOD`, `REACTIVATE_PAYMENT_METHOD`
+
+La base de testing es `test_secure_wallet`. Django la crea al iniciar los tests y la elimina al terminar. No se modifican los datos de `secure_wallet`.
 
 Limitaciones conocidas:
 
-- Django intenta crear la base `test_<DB_NAME>` (por ejemplo `test_secure_wallet`). Si el usuario MySQL **no tiene `CREATE DATABASE`**, los tests fallan aunque la app funcione.
-- Las pruebas de métodos de pago usan `force_authenticate`; no cubren el flujo real de cookie de sesión + CSRF del navegador.
-- No hay tests de duplicados (`409`), aislamiento entre usuarios, logout, auditoría, soft delete/reactivación ni tests de frontend.
-- `pytest` está en `requirements.txt`, pero no hay configuración de proyecto para `pytest`; `python manage.py test` es el camino soportado hoy.
+- Si `wallet_app` no puede crear/borrar `test_secure_wallet`, los tests no llegan a ejecutarse (`1044 Access denied`), aunque la app funcione contra `secure_wallet`.
+- Varias pruebas de métodos de pago usan `force_authenticate`; no cubren el flujo del navegador (cookie de sesión + CSRF). El test de logout sí inicia sesión por `POST /api/auth/login/`.
+- No hay tests de frontend.
+- No se audita `VIEW_PAYMENT_METHOD` (la acción existe en el modelo, pero no se registra al consultar el detalle).
 
 ## API
 
@@ -248,9 +257,8 @@ Para decidir si dos registros son el mismo método se compara el hash por usuari
 
 Ítems reales del código o de la entrega que **no** están cubiertos todavía:
 
-- `.env.example` existe en `backend/`, pero puede no estar versionado en Git.
-- No hay documentación de auditoría consultable en la UI.
+- No hay API ni pantalla para consultar los logs de auditoría.
 - Acción de auditoría `VIEW_PAYMENT_METHOD` no se utiliza.
-- Cobertura de tests incompleta (ver sección Tests).
+- No hay tests de frontend.
 - No hay filtros de listado más allá de la paginación.
 - No hay diagrama de despliegue ni CI.
