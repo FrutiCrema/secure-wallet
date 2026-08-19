@@ -4,7 +4,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { getFieldErrors } from '../api/client'
 import { useAuth } from '../auth/context'
 import { AuthShell } from '../components/AuthShell'
-import { ErrorMessage, FieldError } from '../components/ErrorMessage'
+import { ErrorMessage } from '../components/ErrorMessage'
+import { logAppError } from '../errors'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -36,6 +37,7 @@ export function LoginPage() {
       await login(form)
       navigate(from, { replace: true })
     } catch (err) {
+      logAppError('Error al iniciar sesión', err)
       setError(err)
       setFieldErrors(getFieldErrors(err))
     } finally {
@@ -46,7 +48,6 @@ export function LoginPage() {
   return (
     <AuthShell title="Iniciar sesión" subtitle="Entra para ver y administrar tu wallet.">
       {notice ? <div className="banner banner-success">{notice}</div> : null}
-      <ErrorMessage error={error} />
 
       <form className="form" onSubmit={handleSubmit}>
         <label htmlFor="login-username">
@@ -59,10 +60,9 @@ export function LoginPage() {
             autoComplete="username"
             placeholder="Tu usuario"
             aria-invalid={Boolean(fieldErrors.username)}
-            aria-describedby={fieldErrors.username ? 'login-username-error' : undefined}
+            aria-describedby={fieldErrors.username ? 'login-form-alert' : undefined}
             required
           />
-          <FieldError id="login-username-error" message={fieldErrors.username} />
         </label>
 
         <label htmlFor="login-password">
@@ -76,11 +76,12 @@ export function LoginPage() {
             autoComplete="current-password"
             placeholder="Tu contraseña"
             aria-invalid={Boolean(fieldErrors.password)}
-            aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
+            aria-describedby={fieldErrors.password ? 'login-form-alert' : undefined}
             required
           />
-          <FieldError id="login-password-error" message={fieldErrors.password} />
         </label>
+
+        <ErrorMessage id="login-form-alert" error={error} fieldErrors={fieldErrors} />
 
         <button type="submit" disabled={submitting}>
           {submitting ? 'Entrando…' : 'Entrar'}

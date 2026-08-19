@@ -4,7 +4,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { getFieldErrors } from '../api/client'
 import { useAuth } from '../auth/context'
 import { AuthShell } from '../components/AuthShell'
-import { ErrorMessage, FieldError } from '../components/ErrorMessage'
+import { ErrorMessage } from '../components/ErrorMessage'
+import { logAppError } from '../errors'
 
 export function RegisterPage() {
   const { register } = useAuth()
@@ -36,6 +37,7 @@ export function RegisterPage() {
         state: { notice: 'Cuenta creada. Inicia sesión para continuar.' },
       })
     } catch (err) {
+      logAppError('Error al crear la cuenta', err)
       setError(err)
       setFieldErrors(getFieldErrors(err))
     } finally {
@@ -48,8 +50,6 @@ export function RegisterPage() {
       title="Crear cuenta"
       subtitle="Regístrate para administrar tus métodos de pago."
     >
-      <ErrorMessage error={error} />
-
       <form className="form" onSubmit={handleSubmit}>
         <label htmlFor="register-username">
           Usuario
@@ -61,10 +61,9 @@ export function RegisterPage() {
             autoComplete="username"
             placeholder="Elige un usuario"
             aria-invalid={Boolean(fieldErrors.username)}
-            aria-describedby={fieldErrors.username ? 'register-username-error' : undefined}
+            aria-describedby={fieldErrors.username ? 'register-form-alert' : undefined}
             required
           />
-          <FieldError id="register-username-error" message={fieldErrors.username} />
         </label>
 
         <label htmlFor="register-email">
@@ -78,10 +77,9 @@ export function RegisterPage() {
             autoComplete="email"
             placeholder="correo@ejemplo.com"
             aria-invalid={Boolean(fieldErrors.email)}
-            aria-describedby={fieldErrors.email ? 'register-email-error' : undefined}
+            aria-describedby={fieldErrors.email ? 'register-form-alert' : undefined}
             required
           />
-          <FieldError id="register-email-error" message={fieldErrors.email} />
         </label>
 
         <label htmlFor="register-password">
@@ -95,11 +93,16 @@ export function RegisterPage() {
             autoComplete="new-password"
             placeholder="Mínimo 8 caracteres"
             aria-invalid={Boolean(fieldErrors.password)}
-            aria-describedby={fieldErrors.password ? 'register-password-error' : undefined}
+            aria-describedby={fieldErrors.password ? 'register-form-alert' : undefined}
             required
           />
-          <FieldError id="register-password-error" message={fieldErrors.password} />
         </label>
+
+        <ErrorMessage
+          id="register-form-alert"
+          error={error}
+          fieldErrors={fieldErrors}
+        />
 
         <button type="submit" disabled={submitting}>
           {submitting ? 'Creando cuenta…' : 'Crear cuenta'}

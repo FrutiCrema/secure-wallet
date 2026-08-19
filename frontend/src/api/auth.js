@@ -1,7 +1,7 @@
-import { apiRequest, clearCsrfToken, ensureCsrfToken } from './client'
+import { apiRequest, refreshCsrfToken } from './client'
 
 export function fetchCsrfToken() {
-  return ensureCsrfToken()
+  return refreshCsrfToken()
 }
 
 export function registerUser(payload) {
@@ -11,11 +11,14 @@ export function registerUser(payload) {
   })
 }
 
-export function loginUser(payload) {
-  return apiRequest('/api/auth/login/', {
+export async function loginUser(payload) {
+  const data = await apiRequest('/api/auth/login/', {
     method: 'POST',
     body: payload,
   })
+
+  await refreshCsrfToken()
+  return data
 }
 
 export function fetchCurrentUser() {
@@ -26,6 +29,7 @@ export async function logoutUser() {
   const data = await apiRequest('/api/auth/logout/', {
     method: 'POST',
   })
-  clearCsrfToken()
+
+  await refreshCsrfToken()
   return data
 }

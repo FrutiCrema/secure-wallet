@@ -15,7 +15,11 @@ export default function App() {
 
   return (
     <>
-      {bootError ? <ErrorMessage error={bootError} /> : null}
+      {bootError ? (
+        <div className="boot-alert">
+          <ErrorMessage error={bootError} />
+        </div>
+      ) : null}
 
       <Routes>
         <Route element={<PublicOnlyRoute />}>

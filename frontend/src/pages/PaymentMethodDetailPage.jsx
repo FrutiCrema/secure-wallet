@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { deletePaymentMethod, getPaymentMethod } from '../api/paymentMethods'
 import { ErrorMessage } from '../components/ErrorMessage'
+import { logAppError } from '../errors'
 import { MaskedPan } from '../components/MaskedPan'
 import {
   PAYMENT_TYPE_LABELS,
@@ -31,6 +32,7 @@ export function PaymentMethodDetailPage() {
         }
       } catch (err) {
         if (!cancelled) {
+          logAppError('Error al cargar el método de pago', err)
           setError(err)
           setMethod(null)
         }
@@ -64,61 +66,77 @@ export function PaymentMethodDetailPage() {
       await deletePaymentMethod(method.id)
       navigate('/', { replace: true })
     } catch (err) {
+      logAppError('Error al desactivar el método de pago', err)
       setError(err)
       setDeleting(false)
     }
   }
 
   return (
-    <section>
-      <p>
-        <Link to="/">← Volver al inicio</Link>
-      </p>
-      <h1>Detalle del método</h1>
+    <section className="method-new">
+      <div className="method-new-card">
+        <Link className="method-new-back" to="/">
+          ← Volver al inicio
+        </Link>
 
-      <ErrorMessage error={error} />
+        <h1>Detalle del método</h1>
+        <p className="lead">Consulta la información de este método de pago.</p>
 
-      {loading ? <p className="status">Cargando detalle…</p> : null}
+        {loading ? <p className="status">Cargando detalle…</p> : null}
 
-      {!loading && method ? (
-        <div className="card">
-          <div className="detail-hero">
-            <div>
-              <span className="type-badge">
-                {PAYMENT_TYPE_LABELS[method.type] || method.type}
-              </span>
-              <h2>{method.alias}</h2>
-              <MaskedPan lastFour={method.last_four} />
+        {!loading && !method ? (
+          <ErrorMessage error={error} />
+        ) : null}
+
+        {!loading && method ? (
+          <div className="form">
+            <div className="form-grid">
+              <div className="method-detail-field">
+                <span>Tipo</span>
+                <p>{PAYMENT_TYPE_LABELS[method.type] || method.type}</p>
+              </div>
+
+              <div className="method-detail-field">
+                <span>Alias</span>
+                <p>{method.alias}</p>
+              </div>
+
+              <div className="method-detail-field">
+                <span>Institución</span>
+                <p>{method.institution}</p>
+              </div>
+
+              <div className="method-detail-field">
+                <span>Moneda</span>
+                <p>{method.currency}</p>
+              </div>
+
+              <div className="method-detail-field full">
+                <span>Identificador</span>
+                <MaskedPan lastFour={method.last_four} className="masked method-detail-value" />
+              </div>
+
+              <div className="method-detail-field full">
+                <span>Estatus</span>
+                <p>{STATUS_LABELS[method.status] || method.status}</p>
+              </div>
+            </div>
+
+            <ErrorMessage error={error} />
+
+            <div className="actions">
+              <button
+                type="button"
+                className="danger"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Desactivando…' : 'Desactivar método'}
+              </button>
             </div>
           </div>
-
-          <div className="detail-list">
-            <div className="detail-row">
-              <span>Institución</span>
-              <strong>{method.institution}</strong>
-            </div>
-            <div className="detail-row">
-              <span>Moneda</span>
-              <strong>{method.currency}</strong>
-            </div>
-            <div className="detail-row">
-              <span>Estatus</span>
-              <strong>{STATUS_LABELS[method.status] || method.status}</strong>
-            </div>
-          </div>
-
-          <div className="actions">
-            <button
-              type="button"
-              className="danger"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? 'Desactivando…' : 'Desactivar método'}
-            </button>
-          </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </section>
   )
 }

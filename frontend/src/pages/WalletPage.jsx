@@ -4,8 +4,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { deletePaymentMethod, listPaymentMethods } from '../api/paymentMethods'
 import { useAuth } from '../auth/context'
 import { ErrorMessage } from '../components/ErrorMessage'
-import { MaskedPan } from '../components/MaskedPan'
-import { PAYMENT_TYPE_LABELS, STATUS_LABELS, maskedIdentifier } from './paymentLabels'
+import { logAppError } from '../errors'
+import { PAYMENT_TYPE_LABELS, maskedIdentifier } from './paymentLabels'
+
+const CARDS_PER_SLIDE = 3
+const SLIDE_MS = 5200
 
 export function WalletPage() {
   const { user } = useAuth()
@@ -15,6 +18,7 @@ export function WalletPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [slide, setSlide] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -30,6 +34,7 @@ export function WalletPage() {
         }
       } catch (err) {
         if (!cancelled) {
+          logAppError('Error al cargar métodos de pago', err)
           setError(err)
         }
       } finally {
@@ -66,6 +71,7 @@ export function WalletPage() {
         setPage((current) => current - 1)
       }
     } catch (err) {
+      logAppError('Error al desactivar método de pago', err)
       setError(err)
     } finally {
       setDeletingId(null)
@@ -74,102 +80,183 @@ export function WalletPage() {
 
   const methods = data?.results ?? []
   const methodCount = data?.count ?? 0
+  const slides = chunkMethods(methods, CARDS_PER_SLIDE)
+  const shouldCycle = methods.length > CARDS_PER_SLIDE
+
+  useEffect(() => {
+    setSlide(0)
+  }, [page, methods.length])
+
+  useEffect(() => {
+    if (!shouldCycle) {
+      return undefined
+    }
+
+    const timer = window.setInterval(() => {
+      setSlide((current) => (current + 1) % slides.length)
+    }, SLIDE_MS)
+
+    return () => window.clearInterval(timer)
+  }, [shouldCycle, slides.length])
 
   return (
-    <section>
-      <header className="page-header">
-        <h1>Hola, {user.username}</h1>
-        <p>{user.email}</p>
-      </header>
+    <section className="wallet">
+      <div className="wallet-stage">
+        <div className="wallet-stage-top">
+          <div className="wallet-intro">
+            <h1>Hola, {user.username}</h1>
+            <p className="wallet-email">{user.email}</p>
+            <p className="lead">
+              Administra tus métodos de pago de forma segura.
+            </p>
 
-      <div className="summary-row">
-        <span className="chip">
-          {methodCount} {methodCount === 1 ? 'método activo' : 'métodos activos'}
+            <div className="wallet-summary">
+              <p className="wallet-summary-label">Tu wallet</p>
+              <p className="wallet-summary-count">{methodCount}</p>
+              <p className="wallet-summary-caption">
+                {methodCount === 1 ? 'método activo' : 'métodos activos'}
+              </p>
+            </div>
+
+            <Link className="button button-light" to="/metodos/nuevo">
+              + Agregar método
+            </Link>
+          </div>
+
+          <WalletVisual />
+        </div>
+
+        <div className="wallet-methods">
+          <ErrorMessage error={error} />
+
+          {loading ? <p className="status">Cargando métodos de pago…</p> : null}
+
+          {!loading && methods.length === 0 ? (
+            <div className="wallet-ready">
+              <h2>Tu wallet está lista</h2>
+              <p>Agrega tu primer método de pago para comenzar.</p>
+              <Link className="button button-light" to="/metodos/nuevo">
+                + Agregar método
+              </Link>
+            </div>
+          ) : null}
+
+          {methods.length > 0 ? (
+            <>
+              <div className="wallet-section-head">
+                <h2>Métodos activos</h2>
+              </div>
+
+              <div
+                className={
+                  shouldCycle ? 'wallet-carousel wallet-carousel-cycle' : 'wallet-carousel'
+                }
+              >
+                {slides.map((group, groupIndex) => (
+                  <ul
+                    key={group.map((method) => method.id).join('-')}
+                    className={
+                      shouldCycle && groupIndex === slide
+                        ? 'wallet-method-list is-active'
+                        : 'wallet-method-list'
+                    }
+                    data-count={group.length}
+                    aria-hidden={shouldCycle && groupIndex !== slide}
+                    inert={shouldCycle && groupIndex !== slide ? true : undefined}
+                  >
+                    {group.map((method) => (
+                      <MethodCard
+                        key={method.id}
+                        method={method}
+                        deletingId={deletingId}
+                        onOpen={() => navigate(`/metodos/${method.id}`)}
+                        onDelete={() => handleDelete(method)}
+                      />
+                    ))}
+                  </ul>
+                ))}
+              </div>
+            </>
+          ) : null}
+
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function MethodCard({ method, deletingId, onOpen, onDelete }) {
+  return (
+    <li className="card wallet-method">
+      <div className="wallet-method-top">
+        <span className="type-badge">
+          {PAYMENT_TYPE_LABELS[method.type] || method.type}
+        </span>
+        <span
+          className={
+            method.status === 'ACTIVE'
+              ? 'status-chip status-chip-active'
+              : 'status-chip status-chip-inactive'
+          }
+        >
+          {method.status === 'ACTIVE' ? 'Activa' : 'Inactiva'}
         </span>
       </div>
 
-      <div className="section-header">
-        <h2>Métodos de pago</h2>
-        <Link className="button" to="/metodos/nuevo">
-          Agregar método
-        </Link>
+      <h3>{method.alias}</h3>
+      <p className="method-meta">{method.institution}</p>
+
+      <div className="wallet-method-pan">
+        <span className="masked">
+          •••• •••• •••• {method.last_four || '••••'}
+        </span>
+        <span>{method.currency}</span>
       </div>
 
-      <ErrorMessage error={error} />
+      <div className="wallet-method-actions">
+        <button type="button" className="text-action" onClick={onOpen}>
+          Ver detalles
+        </button>
+        <button
+          type="button"
+          className="text-danger"
+          disabled={deletingId === method.id}
+          onClick={onDelete}
+        >
+          {deletingId === method.id ? 'Eliminando…' : 'Desactivar'}
+        </button>
+      </div>
+    </li>
+  )
+}
 
-      {loading ? <p className="status">Cargando métodos de pago…</p> : null}
+function chunkMethods(methods, size) {
+  const groups = []
 
-      {!loading && methods.length === 0 ? (
-        <div className="card empty-card">
-          <p className="empty">
-            No tienes métodos de pago activos. Agrega una tarjeta, cuenta o CLABE
-            para comenzar.
-          </p>
-          <Link className="button" to="/metodos/nuevo">
-            Agregar método
-          </Link>
+  for (let index = 0; index < methods.length; index += size) {
+    groups.push(methods.slice(index, index + size))
+  }
+
+  return groups
+}
+
+function WalletVisual() {
+  return (
+    <aside className="wallet-visual" aria-hidden="true">
+      <span className="wallet-dot wallet-dot-one" />
+      <span className="wallet-dot wallet-dot-two" />
+      <span className="wallet-dot wallet-dot-three" />
+
+      <article className="wallet-plastic">
+        <div className="wallet-plastic-top">
+          <span>Secure Wallet</span>
+          <span className="auth-chip" />
         </div>
-      ) : null}
-
-      <ul className="method-list">
-        {methods.map((method) => (
-          <li key={method.id} className="card method-card">
-            <div className="method-card-main">
-              <span className="type-badge">
-                {PAYMENT_TYPE_LABELS[method.type] || method.type}
-              </span>
-              <div>
-                <strong>{method.alias}</strong>
-                <p className="method-meta">{method.institution}</p>
-                <MaskedPan lastFour={method.last_four} />
-              </div>
-            </div>
-            <div className="method-side">
-              <div>{method.currency}</div>
-              <div>{STATUS_LABELS[method.status] || method.status}</div>
-              <div className="actions">
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => navigate(`/metodos/${method.id}`)}
-                >
-                  Ver
-                </button>
-                <button
-                  type="button"
-                  className="danger"
-                  disabled={deletingId === method.id}
-                  onClick={() => handleDelete(method)}
-                >
-                  {deletingId === method.id ? 'Eliminando…' : 'Desactivar'}
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      {data && data.count > methods.length ? (
-        <div className="pagination">
-          <button
-            type="button"
-            className="ghost"
-            disabled={!data.previous || loading}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-          >
-            Anterior
-          </button>
-          <span>Página {page}</span>
-          <button
-            type="button"
-            className="ghost"
-            disabled={!data.next || loading}
-            onClick={() => setPage((current) => current + 1)}
-          >
-            Siguiente
-          </button>
+        <p className="wallet-plastic-pan">•••• •••• •••• 4821</p>
+        <div className="wallet-plastic-bottom">
+          <span>Card holder</span>
         </div>
-      ) : null}
-    </section>
+      </article>
+    </aside>
   )
 }

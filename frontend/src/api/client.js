@@ -1,4 +1,5 @@
 const CSRF_HEADER = 'X-CSRFToken'
+const CSRF_COOKIE_NAME = 'csrftoken'
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 let csrfToken = null
@@ -12,9 +13,39 @@ export class ApiError extends Error {
   }
 }
 
-export async function ensureCsrfToken() {
-  if (csrfToken) {
-    return csrfToken
+function readCsrfCookie() {
+  const cookies = document.cookie ? document.cookie.split(';') : []
+
+  for (const cookie of cookies) {
+    const trimmed = cookie.trim()
+    const separator = trimmed.indexOf('=')
+
+    if (separator === -1) {
+      continue
+    }
+
+    const name = trimmed.slice(0, separator)
+
+    if (name === CSRF_COOKIE_NAME) {
+      return decodeURIComponent(trimmed.slice(separator + 1))
+    }
+  }
+
+  return null
+}
+
+export async function ensureCsrfToken({ force = false } = {}) {
+  if (!force) {
+    const fromCookie = readCsrfCookie()
+
+    if (fromCookie) {
+      csrfToken = fromCookie
+      return csrfToken
+    }
+
+    if (csrfToken) {
+      return csrfToken
+    }
   }
 
   const response = await fetch('/api/auth/csrf/', {
@@ -31,7 +62,7 @@ export async function ensureCsrfToken() {
     )
   }
 
-  csrfToken = data.csrfToken
+  csrfToken = data.csrfToken || readCsrfCookie()
   return csrfToken
 }
 
@@ -39,11 +70,29 @@ export function clearCsrfToken() {
   csrfToken = null
 }
 
-export async function apiRequest(path, options = {}) {
-  const method = (options.method || 'GET').toUpperCase()
-  const headers = { Accept: 'application/json', ...options.headers }
+export async function refreshCsrfToken() {
+  clearCsrfToken()
+  return ensureCsrfToken({ force: true })
+}
 
-  if (options.body !== undefined) {
+function isCsrfFailure(data) {
+  const detail = data?.detail
+  const text =
+    typeof detail === 'string'
+      ? detail
+      : Array.isArray(detail)
+        ? detail.map(String).join(' ')
+        : ''
+
+  return /csrf/i.test(text)
+}
+
+export async function apiRequest(path, options = {}) {
+  const { _csrfRetry = false, ...requestOptions } = options
+  const method = (requestOptions.method || 'GET').toUpperCase()
+  const headers = { Accept: 'application/json', ...requestOptions.headers }
+
+  if (requestOptions.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
 
@@ -56,14 +105,19 @@ export async function apiRequest(path, options = {}) {
     headers,
     credentials: 'include',
     body:
-      options.body === undefined
+      requestOptions.body === undefined
         ? undefined
-        : JSON.stringify(options.body),
+        : JSON.stringify(requestOptions.body),
   })
 
   const data = await parseJson(response)
 
   if (!response.ok) {
+    if (UNSAFE_METHODS.has(method) && isCsrfFailure(data) && !_csrfRetry) {
+      await refreshCsrfToken()
+      return apiRequest(path, { ...requestOptions, _csrfRetry: true })
+    }
+
     if (response.status === 403 && UNSAFE_METHODS.has(method)) {
       clearCsrfToken()
     }

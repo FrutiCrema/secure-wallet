@@ -8,6 +8,7 @@ import {
   registerUser,
 } from '../api/auth'
 import { ApiError } from '../api/client'
+import { logAppError } from '../errors'
 import { AuthContext } from './context'
 
 export function AuthProvider({ children }) {
@@ -33,6 +34,7 @@ export function AuthProvider({ children }) {
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
           setUser(null)
         } else {
+          logAppError('Error al iniciar la aplicación', error)
           setBootError(error.message || 'No se pudo iniciar la aplicación.')
         }
       } finally {
