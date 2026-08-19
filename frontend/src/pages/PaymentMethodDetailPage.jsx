@@ -3,10 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { deletePaymentMethod, getPaymentMethod } from '../api/paymentMethods'
 import { ErrorMessage } from '../components/ErrorMessage'
+import { MaskedPan } from '../components/MaskedPan'
 import {
   PAYMENT_TYPE_LABELS,
   STATUS_LABELS,
-  maskedIdentifier,
 } from './paymentLabels'
 
 export function PaymentMethodDetailPage() {
@@ -82,27 +82,31 @@ export function PaymentMethodDetailPage() {
 
       {!loading && method ? (
         <div className="card">
-          <p>
-            <strong>Alias:</strong> {method.alias}
-          </p>
-          <p>
-            <strong>Tipo:</strong>{' '}
-            {PAYMENT_TYPE_LABELS[method.type] || method.type}
-          </p>
-          <p>
-            <strong>Institución:</strong> {method.institution}
-          </p>
-          <p>
-            <strong>Moneda:</strong> {method.currency}
-          </p>
-          <p>
-            <strong>Identificador:</strong>{' '}
-            <span className="masked">{maskedIdentifier(method.last_four)}</span>
-          </p>
-          <p>
-            <strong>Estatus:</strong>{' '}
-            {STATUS_LABELS[method.status] || method.status}
-          </p>
+          <div className="detail-hero">
+            <div>
+              <span className="type-badge">
+                {PAYMENT_TYPE_LABELS[method.type] || method.type}
+              </span>
+              <h2>{method.alias}</h2>
+              <MaskedPan lastFour={method.last_four} />
+            </div>
+          </div>
+
+          <div className="detail-list">
+            <div className="detail-row">
+              <span>Institución</span>
+              <strong>{method.institution}</strong>
+            </div>
+            <div className="detail-row">
+              <span>Moneda</span>
+              <strong>{method.currency}</strong>
+            </div>
+            <div className="detail-row">
+              <span>Estatus</span>
+              <strong>{STATUS_LABELS[method.status] || method.status}</strong>
+            </div>
+          </div>
+
           <div className="actions">
             <button
               type="button"

@@ -9,6 +9,7 @@ export function Layout() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
+  const initial = user.username.slice(0, 1).toUpperCase()
 
   async function handleLogout() {
     setError('')
@@ -35,16 +36,25 @@ export function Layout() {
             Inicio
           </NavLink>
           <NavLink to="/metodos/nuevo">Agregar método</NavLink>
-          <span className="nav-user">{user.username}</span>
-          <button type="button" onClick={handleLogout} disabled={loggingOut}>
+          <span className="nav-user">
+            <span className="avatar" aria-hidden="true">
+              {initial}
+            </span>
+            {user.username}
+          </span>
+          <button
+            type="button"
+            className="ghost"
+            onClick={handleLogout}
+            disabled={loggingOut}
+          >
             {loggingOut ? 'Cerrando…' : 'Cerrar sesión'}
           </button>
         </nav>
       </header>
 
-      <ErrorMessage error={error} />
-
       <main className="content">
+        <ErrorMessage error={error} />
         <Outlet />
       </main>
     </div>

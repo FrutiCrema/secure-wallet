@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { getFieldErrors } from '../api/client'
 import { useAuth } from '../auth/context'
+import { AuthShell } from '../components/AuthShell'
 import { ErrorMessage, FieldError } from '../components/ErrorMessage'
 
 export function LoginPage() {
@@ -43,37 +44,42 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-page">
-      <h1>Iniciar sesión</h1>
-      <p className="lead">Entra para ver y administrar tu wallet.</p>
-
+    <AuthShell title="Iniciar sesión" subtitle="Entra para ver y administrar tu wallet.">
       {notice ? <div className="banner banner-success">{notice}</div> : null}
       <ErrorMessage error={error} />
 
-      <form className="card form" onSubmit={handleSubmit}>
-        <label>
+      <form className="form" onSubmit={handleSubmit}>
+        <label htmlFor="login-username">
           Usuario
           <input
+            id="login-username"
             name="username"
             value={form.username}
             onChange={updateField}
             autoComplete="username"
+            placeholder="Tu usuario"
+            aria-invalid={Boolean(fieldErrors.username)}
+            aria-describedby={fieldErrors.username ? 'login-username-error' : undefined}
             required
           />
-          <FieldError message={fieldErrors.username} />
+          <FieldError id="login-username-error" message={fieldErrors.username} />
         </label>
 
-        <label>
+        <label htmlFor="login-password">
           Contraseña
           <input
+            id="login-password"
             name="password"
             type="password"
             value={form.password}
             onChange={updateField}
             autoComplete="current-password"
+            placeholder="Tu contraseña"
+            aria-invalid={Boolean(fieldErrors.password)}
+            aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
             required
           />
-          <FieldError message={fieldErrors.password} />
+          <FieldError id="login-password-error" message={fieldErrors.password} />
         </label>
 
         <button type="submit" disabled={submitting}>
@@ -81,9 +87,9 @@ export function LoginPage() {
         </button>
       </form>
 
-      <p>
+      <p className="auth-footer">
         ¿No tienes cuenta? <Link to="/register">Regístrate</Link>
       </p>
-    </div>
+    </AuthShell>
   )
 }

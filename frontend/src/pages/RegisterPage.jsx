@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { getFieldErrors } from '../api/client'
 import { useAuth } from '../auth/context'
+import { AuthShell } from '../components/AuthShell'
 import { ErrorMessage, FieldError } from '../components/ErrorMessage'
 
 export function RegisterPage() {
@@ -43,59 +44,71 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="auth-page">
-      <h1>Crear cuenta</h1>
-      <p className="lead">Regístrate para administrar tus métodos de pago.</p>
-
+    <AuthShell
+      title="Crear cuenta"
+      subtitle="Regístrate para administrar tus métodos de pago."
+    >
       <ErrorMessage error={error} />
 
-      <form className="card form" onSubmit={handleSubmit}>
-        <label>
+      <form className="form" onSubmit={handleSubmit}>
+        <label htmlFor="register-username">
           Usuario
           <input
+            id="register-username"
             name="username"
             value={form.username}
             onChange={updateField}
             autoComplete="username"
+            placeholder="Elige un usuario"
+            aria-invalid={Boolean(fieldErrors.username)}
+            aria-describedby={fieldErrors.username ? 'register-username-error' : undefined}
             required
           />
-          <FieldError message={fieldErrors.username} />
+          <FieldError id="register-username-error" message={fieldErrors.username} />
         </label>
 
-        <label>
+        <label htmlFor="register-email">
           Correo electrónico
           <input
+            id="register-email"
             name="email"
             type="email"
             value={form.email}
             onChange={updateField}
             autoComplete="email"
+            placeholder="correo@ejemplo.com"
+            aria-invalid={Boolean(fieldErrors.email)}
+            aria-describedby={fieldErrors.email ? 'register-email-error' : undefined}
             required
           />
-          <FieldError message={fieldErrors.email} />
+          <FieldError id="register-email-error" message={fieldErrors.email} />
         </label>
 
-        <label>
+        <label htmlFor="register-password">
           Contraseña
           <input
+            id="register-password"
             name="password"
             type="password"
             value={form.password}
             onChange={updateField}
             autoComplete="new-password"
+            placeholder="Mínimo 8 caracteres"
+            aria-invalid={Boolean(fieldErrors.password)}
+            aria-describedby={fieldErrors.password ? 'register-password-error' : undefined}
             required
           />
-          <FieldError message={fieldErrors.password} />
+          <FieldError id="register-password-error" message={fieldErrors.password} />
         </label>
 
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Creando cuenta…' : 'Registrarme'}
+          {submitting ? 'Creando cuenta…' : 'Crear cuenta'}
         </button>
       </form>
 
-      <p>
+      <p className="auth-footer">
         ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
       </p>
-    </div>
+    </AuthShell>
   )
 }

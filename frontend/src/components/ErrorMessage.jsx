@@ -17,16 +17,21 @@ export function ErrorMessage({ error }) {
 
   return (
     <div className={`banner banner-error${status ? ` status-${status}` : ''}`} role="alert">
-      <strong>{status ? `Error ${status}.` : 'Error.'}</strong> {message}
-      {STATUS_HINTS[status] ? ` ${STATUS_HINTS[status]}` : null}
+      <strong>{status ? `Error ${status}` : 'Error'}</strong>
+      <span> {message}</span>
+      {STATUS_HINTS[status] ? <span> {STATUS_HINTS[status]}</span> : null}
     </div>
   )
 }
 
-export function FieldError({ message }) {
+export function FieldError({ id, message }) {
   if (!message) {
     return null
   }
 
-  return <p className="field-error">{message}</p>
+  return (
+    <p id={id} className="field-error">
+      {message}
+    </p>
+  )
 }

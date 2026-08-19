@@ -52,71 +52,76 @@ export function PaymentMethodNewPage() {
         <Link to="/">← Volver al inicio</Link>
       </p>
       <h1>Agregar método de pago</h1>
-      <p className="lead">
-        El identificador completo no se guarda ni se vuelve a mostrar. Solo
-        verás los últimos 4 caracteres.
+
+      <p className="notice">
+        El número completo no se almacena. Solo se mostrarán los últimos 4
+        caracteres.
       </p>
 
       <ErrorMessage error={error} />
 
       <form className="card form" onSubmit={handleSubmit} autoComplete="off">
-        <label>
-          Tipo
-          <select name="type" value={form.type} onChange={updateField} required>
-            <option value="CARD">Tarjeta</option>
-            <option value="BANK_ACCOUNT">Cuenta bancaria</option>
-            <option value="CLABE">CLABE</option>
-            <option value="OTHER">Otro</option>
-          </select>
-          <FieldError message={fieldErrors.type} />
-        </label>
+        <div className="form-grid">
+          <label>
+            Tipo
+            <select name="type" value={form.type} onChange={updateField} required>
+              <option value="CARD">Tarjeta</option>
+              <option value="BANK_ACCOUNT">Cuenta bancaria</option>
+              <option value="CLABE">CLABE</option>
+              <option value="OTHER">Otro</option>
+            </select>
+            <FieldError message={fieldErrors.type} />
+          </label>
 
-        <label>
-          Alias
-          <input
-            name="alias"
-            value={form.alias}
-            onChange={updateField}
-            required
-          />
-          <FieldError message={fieldErrors.alias} />
-        </label>
+          <label>
+            Alias
+            <input
+              name="alias"
+              value={form.alias}
+              onChange={updateField}
+              placeholder="Ej. Tarjeta principal"
+              required
+            />
+            <FieldError message={fieldErrors.alias} />
+          </label>
 
-        <label>
-          Institución
-          <input
-            name="institution"
-            value={form.institution}
-            onChange={updateField}
-            required
-          />
-          <FieldError message={fieldErrors.institution} />
-        </label>
+          <label>
+            Institución
+            <input
+              name="institution"
+              value={form.institution}
+              onChange={updateField}
+              placeholder="Banco o emisor"
+              required
+            />
+            <FieldError message={fieldErrors.institution} />
+          </label>
 
-        <label>
-          Moneda
-          <input
-            name="currency"
-            value={form.currency}
-            onChange={updateField}
-            maxLength={3}
-            required
-          />
-          <FieldError message={fieldErrors.currency} />
-        </label>
+          <label>
+            Moneda
+            <input
+              name="currency"
+              value={form.currency}
+              onChange={updateField}
+              maxLength={3}
+              required
+            />
+            <FieldError message={fieldErrors.currency} />
+          </label>
 
-        <label>
-          Identificador
-          <input
-            name="identifier"
-            type="password"
-            value={form.identifier}
-            onChange={updateField}
-            autoComplete="off"
-            required
-          />
-          <FieldError message={fieldErrors.identifier} />
-        </label>
+          <label className="full">
+            Identificador
+            <input
+              name="identifier"
+              type="password"
+              value={form.identifier}
+              onChange={updateField}
+              autoComplete="off"
+              required
+            />
+            <FieldError message={fieldErrors.identifier} />
+          </label>
+        </div>
 
         <button type="submit" disabled={submitting}>
           {submitting ? 'Guardando…' : 'Guardar método'}
