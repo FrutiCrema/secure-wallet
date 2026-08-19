@@ -149,3 +149,43 @@ class LoginTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.data['detail'], 'Credenciales inválidas.')
         self.assertNotIn('username', response.data)
+
+
+class LogoutTests(APITestCase):
+
+    password = 'StrongPass123'
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='logoutuser',
+            email='logout@example.com',
+            password=self.password,
+        )
+
+    def test_logout_invalidates_the_session(self):
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {
+                'username': 'logoutuser',
+                'password': self.password,
+            },
+            format='json',
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        me_response = self.client.get('/api/auth/me/')
+        self.assertEqual(me_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(me_response.data['user']['username'], 'logoutuser')
+
+        logout_response = self.client.post('/api/auth/logout/', format='json')
+        self.assertEqual(logout_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            logout_response.data['message'],
+            'Sesión cerrada correctamente.',
+        )
+
+        me_after_logout = self.client.get('/api/auth/me/')
+        self.assertIn(
+            me_after_logout.status_code,
+            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+        )
